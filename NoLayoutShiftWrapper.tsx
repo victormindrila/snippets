@@ -49,3 +49,11 @@ const NoLayoutShiftWrapper = ({ isVisible, children }: WrapperProps): JSX.Elemen
         })
     );
 };
+
+/**
+ * usage
+ * 
+ * <NoLayoutShiftWrapper isVisible={isVisible}>
+ *  <MyComponent />
+ * </NoLayoutShiftWrapper>
+ */
