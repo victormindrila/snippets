@@ -14,6 +14,11 @@ const getElAbsoluteHeight = (el: HTMLElement): number => {
     return Math.ceil(el.offsetHeight + margin);
 };
 
+/**
+ * HOC that wraps over a React Component that must be hidden. 
+ * Removes the children from DOM and prevents layout shift.
+ */
+
 const NoLayoutShiftWrapper = ({ isVisible, children }: WrapperProps): JSX.Element => {
     const ref = useRef<HTMLDivElement>();
     const [showChildren, setShowChildren] = useState(true);
