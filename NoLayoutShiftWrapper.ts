@@ -21,8 +21,8 @@ const NoLayoutShiftWrapper = ({ isVisible, children }: WrapperProps): JSX.Elemen
 
     useLayoutEffect(() => {
         if (ref.current) {
-            const elementHeights = getElAbsoluteHeight(ref.current);
-            setHeight(elementHeights);
+            const elementHeight = getElAbsoluteHeight(ref.current);
+            setHeight(elementHeight);
         }
 
         if (!isVisible) {
