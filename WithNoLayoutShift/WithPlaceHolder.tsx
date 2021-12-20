@@ -1,4 +1,4 @@
-import React from 'react'; 
+import React, {useLayoutEffect, useState } from 'react'; 
 
 interface WrapperProps {
     isVisible: boolean;
