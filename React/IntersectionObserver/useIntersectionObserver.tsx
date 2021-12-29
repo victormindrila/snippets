@@ -5,8 +5,8 @@ export interface ObserverProps extends IntersectionObserverInit {
     onIntersect?: (element?: IntersectionObserverEntry) => void;
 }
 
-const useIntersectionObserver = ({ rootMargin, threshold, onIntersect }: ObserverProps) => {
-    const ref = useRef<any>();
+const useIntersectionObserver = <T extends HTMLElement> ({ rootMargin, threshold, onIntersect }: ObserverProps) => {
+    const ref = useRef<T>();
     const [isVisible, setIsVisible] = useState<boolean>(true);
 
     useEffect(() => {
