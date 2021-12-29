@@ -5,6 +5,11 @@ export interface ObserverProps extends IntersectionObserverInit {
     onIntersect?: (element?: IntersectionObserverEntry) => void;
 }
 
+/**
+ * Observes a DOM element and returns isVisible as soon as the element enters the viewport.
+ * Fires onIntersect callback when the element intersects any of the threshold points.
+ */
+
 const useIntersectionObserver = <T extends HTMLElement> ({ rootMargin, threshold, onIntersect }: ObserverProps) => {
     const ref = useRef<T>();
     const [isVisible, setIsVisible] = useState<boolean>(true);

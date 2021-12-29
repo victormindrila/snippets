@@ -9,6 +9,11 @@ interface WrapperProps extends ObserverProps {
     style?: { [key: string]: string };
 }
 
+/**
+ * Wrapper which adds intersection observer to a react component.
+ * onVisibiliyChange callback is fired as soon as the element enters view port at specified threshold.
+ */
+
 const InView = ({
     rootMargin,
     threshold,
