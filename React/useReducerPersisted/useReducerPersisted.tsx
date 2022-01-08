@@ -31,10 +31,10 @@ const testLs = (): boolean => {
 	}
 };
 
-const persistReducer = <S extends unknown, A extends unknown>(reducer: Reducer<any, any>, key?: string) => (
-	state: S,
-	action: A
-): S => {
+const persistReducer = <R extends Reducer<any, any>>(reducer: R, key?: string) => (
+	state: ReducerState<R>,
+	action: ReducerAction<R>
+): ReducerState<R> => {
 	const newState = reducer(state, action);
 	testLs() && localStorage.setItem(key || 'state', serialize(newState));
 	return newState;
@@ -43,17 +43,13 @@ const persistReducer = <S extends unknown, A extends unknown>(reducer: Reducer<a
 const useReducerPersisted = <R extends Reducer<any, any>, I>(
 	reducer: R,
 	initialState: I,
-	key?: string
+	persistKey?: string
 ): [ReducerState<R>, Dispatch<ReducerAction<R>>] => {
-	const [ state, dispatch ] = useReducer(
-		persistReducer<ReducerState<R>, ReducerAction<R>>(reducer, key),
-		initialState,
-		(initialState) => {
-			const persistedState = testLs() && deserialize(localStorage.getItem(key || 'state'));
+	const [ state, dispatch ] = useReducer(persistReducer(reducer, persistKey), initialState, (initialState) => {
+		const persistedState = testLs() && deserialize(localStorage.getItem(persistKey || 'state'));
 
-			return persistedState || initialState;
-		}
-	);
+		return persistedState || initialState;
+	});
 
 	return [ state, dispatch ];
 };
