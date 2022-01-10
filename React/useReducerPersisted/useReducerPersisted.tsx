@@ -40,9 +40,9 @@ const persistReducer = <R extends Reducer<any, any>>(reducer: R, key?: string) =
 	return newState;
 };
 
-const useReducerPersisted = <R extends Reducer<any, any>, I>(
+const useReducerPersisted = <R extends Reducer<any, any>>(
 	reducer: R,
-	initialState: I,
+	initialState: ReducerState<R>,
 	persistKey?: string
 ): [ReducerState<R>, Dispatch<ReducerAction<R>>] => {
 	const [ state, dispatch ] = useReducer(persistReducer(reducer, persistKey), initialState, (initialState) => {
