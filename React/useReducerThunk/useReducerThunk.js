@@ -3,16 +3,16 @@ import { useReducer } from 'react';
 /**
  * thunk pattern for React.useReducer hook
  * 
- * @param {*} reducer
- * @param {*} initialState 
- * @returns state and async dispatch
+ * @param {Reducer} reducer
+ * @param {ReducerState} initialState 
+ * @returns {[ReducerState, Dispatch]} state and async dispatch
  * @usage
  * ```
  * 
  * const asyncAction = async (dispatch) => {
  *  dispatch({ type: 'LOADING', payload: true });
  *  await fetch(url).then(data => data.json()).then(data => dispatch({ type: 'ADD_TODOS', payload: data}))
- *  dispatch({ type: 'LOADING', payload: true });
+ *  dispatch({ type: 'LOADING', payload: false });
  * }
  * 
  * 
