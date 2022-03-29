@@ -23,7 +23,7 @@ class Recaptcha {
 			defer: true,
 			onCreateScript: () => {
 				this.recaptchaLoadTimeoutId = setTimeout(() => {
-					 this.listeners.triggerEvent('recaptchaLoad', 'Failed to load');
+					 this.listeners.triggerEvent('recaptchaLoadError', 'Failed to load');
 				}, 10000)
 
 				window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this) 
@@ -95,12 +95,23 @@ class Recaptcha {
 					})
 					.catch((e) => {
 						if (retryOnFail) {
-							this.execute(action);
+							this.execute(action, false);
 						} else {
 							reject(e);
 						}
 					});
 			}
+
+			const _loadPromise = () => new Promise((resolve, reject) => {
+				this.listeners.addEventListener('recaptchaLoadError', (error) => {
+					// timeout error 
+					reject(error);
+				})
+
+				this.listeners.addEventListener('recaptchaLoaded', () => {
+					resolve(); 
+				})
+			})
 
 			let error;
 			if (this.status === 'initial') {
@@ -114,14 +125,15 @@ class Recaptcha {
 			if (error) reject(error);
 
 			if (!this.instance) {
-				// await until recaptcha loads
-				this.listeners.addEventListener('recaptchaLoaded', (error) => {
-					// timeout error
-					if (error) {
-						reject(error);
-					}
-					_execute();
-				})
+				_loadPromise()
+					.then(() => {
+						_execute();
+					})
+					.catch((e) =>{
+						// timeout error
+						// throwing an error instead of retry, as the user will have to wait too much
+						 reject(e)
+					})
 			} else {
 				_execute();
 			}
