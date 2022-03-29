@@ -1,6 +1,6 @@
 
-interface Props {
-    promiseFn: (isRetry?: boolean) => Promise<T>;
+interface Props<K> {
+    promiseFn: (isRetry?: boolean) => Promise<K>;
     shouldRetry: (error?: any) => boolean;
     retryTimes?: number;
     delay?: number;
@@ -19,7 +19,7 @@ const promiseRetry = async <T>({
     retryTimes = 2,
     delay = 0,
     isRetry = false
-}: Props): Promise<T> => {
+}: Props<T>): Promise<T> => {
     try {
         return await promiseFn(isRetry);
     } catch (e) {
