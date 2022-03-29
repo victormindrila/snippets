@@ -1,7 +1,5 @@
-// WIP 
-// recaptcha singleton
-
-import { Listeners } from './utils/Listeners'; 
+// recpatcha singleton
+import { Listeners } from './utils/Listeners';
 import { ScriptLoader } from './utils/ScriptLoader';
 
 class Recaptcha {
@@ -19,9 +17,7 @@ class Recaptcha {
 			id: scriptId,
 			async: true,
 			defer: true,
-			onCreateScript: () => {
-				window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this);
-			}
+			onCreateScript: () => (window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this))
 		});
 	}
 
@@ -57,6 +53,7 @@ class Recaptcha {
 		this.status = 'initial';
 		this.script.cleanScript();
 
+		// clean other script
 		const scripts = document.getElementsByTagName('script');
 		for (let i = 0; i < scripts.length; i++) {
 			if (scripts[i].src.includes('recaptcha')) {
@@ -112,4 +109,4 @@ class Recaptcha {
 	}
 }
 
-export default new Recaptcha('site key');
+export default new Recaptcha('recaptcha key');

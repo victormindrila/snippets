@@ -8,10 +8,10 @@ export class Listeners {
 		this.listeners[eventName].push(callback);
 	}
 
-	triggerEvent(eventName) {
+	triggerEvent(eventName, e) {
 		if (this.listeners[eventName]) {
 			this.listeners[eventName].forEach((callback) => {
-				callback();
+				callback(e);
 			});
 		}
 	}

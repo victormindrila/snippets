@@ -1,4 +1,4 @@
-class ScriptLoader {
+export class ScriptLoader {
 	scriptElementRef = null;
 	src = null;
 	id = null;
@@ -38,12 +38,14 @@ class ScriptLoader {
 				script.addEventListener('load', (e) => {
 					this.status = 'loaded';
 					script.setAttribute('data-status', 'loaded');
+
 					resolve(e);
 				});
 
 				script.addEventListener('error', (e) => {
 					this.status = 'error';
 					script.setAttribute('data-status', 'loaded');
+
 					reject(e);
 				});
 			});
