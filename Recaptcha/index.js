@@ -73,7 +73,7 @@ class Recaptcha {
 	}
 
 	onRecaptchaLoaded() {
-		clearInterval(this.recaptchaLoadTimeoutId); // clear failed to load timeout
+		clearTimeout(this.recaptchaLoadTimeoutId); // clear failed to load timeout
 
 		this.instance = window.grecaptcha;
 		this.status = 'loaded';
