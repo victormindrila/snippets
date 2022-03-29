@@ -2,6 +2,7 @@ import { Listeners } from './utils/Listeners';
 import { ScriptLoader } from './utils/ScriptLoader';
 
 /**
+ * WIP
  * recpatcha singleton
  * TODO: add TS, pass recaptcha key in init method, extract hardcoded values
  */
