@@ -23,9 +23,10 @@ class Recaptcha {
 			async: true,
 			defer: true,
 			onCreateScript: () => {
+				const timeout = 10000;
 				this.recaptchaLoadTimeoutId = setTimeout(() => {
-					 this.listeners.triggerEvent('recaptchaLoadError', 'Failed to load');
-				}, 10000)
+					 this.listeners.triggerEvent('recaptchaLoadTimeout', `Failed to load in ${timeout}ms`);
+				}, timeout)
 
 				window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this) 
 			}
@@ -104,7 +105,7 @@ class Recaptcha {
 			}
 
 			const _loadPromise = () => new Promise((resolve, reject) => {
-				this.listeners.addEventListener('recaptchaLoadError', (error) => {
+				this.listeners.addEventListener('recaptchaLoadTimeout', (error) => {
 					// timeout error 
 					reject(error);
 				})
