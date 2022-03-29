@@ -7,11 +7,11 @@ const defaultHeaders = {
     'Accept': 'application/json'
 }
 
-const url = '#'; 
+const url = '#';
 
 const App = () => {
     const handlePostApiWithRHeaders = async () => {
-       const res =  await fetch(url, {
+        const res = await (await fetch(url, {
             method: 'POST',
             headers: {
                 ...defaultHeaders,
@@ -19,13 +19,13 @@ const App = () => {
                 ...(await recaptcha.getRecaptchaHeaders('action name'))
             },
             body: JSON.stringify({ user: 'john@doe.com' })
-        })
+        })).json()
     }
 
     const handlePostApi = async () => {
         const token = await recaptcha.execute('action name', true);
         // will be executed after recaptcha executes
-        const res = await fetch(url, {
+        const res = await (await fetch(url, {
             method: 'POST',
             headers: {
                 ...defaultHeaders,
@@ -33,7 +33,7 @@ const App = () => {
 
             },
             body: JSON.stringify({ user: 'john@doe.com' })
-        })
+        })).json()
     }
 
     return (
