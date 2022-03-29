@@ -1,0 +1,1 @@
+A collection of code snippets for common problems developed by me.
