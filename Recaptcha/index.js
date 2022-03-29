@@ -1,13 +1,17 @@
-// recpatcha singleton
 import { Listeners } from './utils/Listeners';
 import { ScriptLoader } from './utils/ScriptLoader';
 
+/**
+ * recpatcha singleton
+ * TODO: add TS, pass recaptcha key in init method, extract hardcoded values
+ */
 class Recaptcha {
 	siteKey = null;
 	instance = null;
 	status = 'initial'; // initial, loading, loaded, error
 	script = null;
 	listeners = null;
+	recaptchaLoadTimeoutId;
 
 	constructor(siteKey, scriptId = 'google-recaptcha-script') {
 		this.siteKey = siteKey;
@@ -17,7 +21,13 @@ class Recaptcha {
 			id: scriptId,
 			async: true,
 			defer: true,
-			onCreateScript: () => (window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this))
+			onCreateScript: () => {
+				this.recaptchaLoadTimeoutId = setTimeout(() => {
+					 this.listeners.triggerEvent('recaptchaLoad', 'Failed to load');
+				}, 10000)
+
+				window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this) 
+			}
 		});
 	}
 
@@ -53,7 +63,7 @@ class Recaptcha {
 		this.status = 'initial';
 		this.script.cleanScript();
 
-		// clean other script
+		// clean other scripts
 		const scripts = document.getElementsByTagName('script');
 		for (let i = 0; i < scripts.length; i++) {
 			if (scripts[i].src.includes('recaptcha')) {
@@ -63,6 +73,8 @@ class Recaptcha {
 	}
 
 	onRecaptchaLoaded() {
+		clearInterval(this.recaptchaLoadTimeoutId); // clear failed to load timeout
+
 		this.instance = window.grecaptcha;
 		this.status = 'loaded';
 		this.listeners.triggerEvent('recaptchaLoaded');
@@ -75,34 +87,49 @@ class Recaptcha {
 	}
 
 	execute(action, retryOnFail = false) {
-		if (this.status === 'initial') {
-			throw new Error('Please init recaptcha before execute');
-		}
-
-		if (this.status === 'error') {
-			throw new Error('Recaptcha script load error');
-		}
-
-		if (!this.instance) {
-			throw new Error('Recaptcha not yet loaded');
-		}
-
 		return new Promise((resolve, reject) => {
-			this.getToken(action)
-				.then((token) => {
-					resolve(token);
-				})
-				.catch((e) => {
-					if (retryOnFail) {
-						this.execute(action);
-					} else {
-						reject(e);
+			const _execute = () => {
+				this.getToken(action)
+					.then((token) => {
+						resolve(token);
+					})
+					.catch((e) => {
+						if (retryOnFail) {
+							this.execute(action);
+						} else {
+							reject(e);
+						}
+					});
+			}
+
+			let error;
+			if (this.status === 'initial') {
+				error = new Error('Please init recaptcha before execute');
+			}
+
+			if (!this.instance && this.status === 'error') {
+				error = new Error('Recaptcha script load error');
+			}
+
+			if (error) reject(error);
+
+			if (!this.instance) {
+				// await until recaptcha loads
+				this.listeners.addEventListener('recaptchaLoaded', (error) => {
+					// timeout error
+					if (error) {
+						reject(error);
 					}
-				});
+					_execute();
+				})
+			} else {
+				_execute();
+			}
 		});
 	}
 
 	async getRecaptchaHeaders(action, retryOnFail = false) {
+		// predefined headers to be appended to api calls
 		return {
 			'g-recaptcha-response': await this.execute(action, retryOnFail)
 		};
