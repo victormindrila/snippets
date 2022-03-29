@@ -12,7 +12,7 @@ class Recaptcha {
 	status = 'initial'; // initial, loading, loaded, error
 	script = null;
 	listeners = null;
-	recaptchaLoadTimeoutId;
+	fnPromises = [];
 
 	constructor(siteKey, scriptId = 'google-recaptcha-script') {
 		this.siteKey = siteKey;
@@ -23,12 +23,7 @@ class Recaptcha {
 			async: true,
 			defer: true,
 			onCreateScript: () => {
-				const timeout = 10000;
-				this.recaptchaLoadTimeoutId = setTimeout(() => {
-					 this.listeners.triggerEvent('recaptchaLoadTimeout', `Failed to load in ${timeout}ms`);
-				}, timeout)
-
-				window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this) 
+				window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this);
 			}
 		});
 	}
@@ -48,9 +43,12 @@ class Recaptcha {
 	async init(retryOnFail = false) {
 		if (this.instance || this.status !== 'initial') return;
 
+		this.status = 'loading';
+
 		await this.script.loadScript().catch((e) => {
 			this.cleanRecaptcha();
 			this.status = 'error';
+			this.listeners.triggerEvent('recaptchaLoadError', e);
 
 			if (retryOnFail) {
 				this.init(false);
@@ -61,6 +59,8 @@ class Recaptcha {
 	}
 
 	cleanRecaptcha() {
+		this.rejectAllPendingActions();
+
 		this.instance = null;
 		this.status = 'initial';
 		this.script.cleanScript();
@@ -74,12 +74,25 @@ class Recaptcha {
 		}
 	}
 
-	onRecaptchaLoaded() {
-		clearTimeout(this.recaptchaLoadTimeoutId); // clear failed to load timeout
+	resolveAllPendingActions() {
+		while (this.fnPromises.length > 0) {
+			const fnPromise = this.fnPromises.shift();
+			fnPromise.resolve();
+		}
+	}
 
+	rejectAllPendingActions() {
+		while (this.fnPromises.length > 0) {
+			const fnPromise = this.fnPromises.shift();
+			fnPromise.reject();
+		}
+	}
+
+	onRecaptchaLoaded() {
 		this.instance = window.grecaptcha;
 		this.status = 'loaded';
 		this.listeners.triggerEvent('recaptchaLoaded');
+		this.resolveAllPendingActions();
 	}
 
 	async getToken(action) {
@@ -90,6 +103,32 @@ class Recaptcha {
 
 	execute(action, retryOnFail = false) {
 		return new Promise((resolve, reject) => {
+			let error;
+			if (this.status === 'initial') {
+				error = new Error('Please init recaptcha before execute');
+			}
+			if (!this.instance && this.status === 'error') {
+				error = new Error('Recaptcha script load error');
+			}
+			if (error) {
+				reject(error);
+				return;
+			}
+
+			let _scriptLoadPromise;
+			if (this.instance) {
+				_scriptLoadPromise = Promise.resolve();
+			} else {
+				_scriptLoadPromise = new Promise((resolve, reject) => {
+					setTimeout(() => reject('Recaptcha script load timeout'), 10000);
+
+					this.fnPromises.push({
+						resolve,
+						reject
+					});
+				});
+			}
+
 			const _execute = () => {
 				this.getToken(action)
 					.then((token) => {
@@ -102,43 +141,17 @@ class Recaptcha {
 							reject(e);
 						}
 					});
-			}
+			};
 
-			const _loadPromise = () => new Promise((resolve, reject) => {
-				this.listeners.addEventListener('recaptchaLoadTimeout', (error) => {
-					// timeout error 
-					reject(error);
+			_scriptLoadPromise
+				.then(() => {
+					_execute();
 				})
-
-				this.listeners.addEventListener('recaptchaLoaded', () => {
-					resolve(); 
-				})
-			})
-
-			let error;
-			if (this.status === 'initial') {
-				error = new Error('Please init recaptcha before execute');
-			}
-
-			if (!this.instance && this.status === 'error') {
-				error = new Error('Recaptcha script load error');
-			}
-
-			if (error) reject(error);
-
-			if (!this.instance) {
-				_loadPromise()
-					.then(() => {
-						_execute();
-					})
-					.catch((e) =>{
-						// timeout error
-						// throwing an error instead of retry, as the user will have to wait too much
-						 reject(e)
-					})
-			} else {
-				_execute();
-			}
+				.catch((e) => {
+					// timeout error
+					// throwing an error instead of retry, as the user will have to wait too much
+					reject(e);
+				});
 		});
 	}
 
