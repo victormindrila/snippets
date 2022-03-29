@@ -1,8 +1,8 @@
 // WIP 
 // recaptcha singleton
 
-import { Listeners } from './Listeners'; 
-import { ScriptLoader } from './ScriptLoader';
+import { Listeners } from './utils/Listeners'; 
+import { ScriptLoader } from './utils/ScriptLoader';
 
 class Recaptcha {
 	siteKey = null;
