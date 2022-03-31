@@ -7,7 +7,7 @@ interface Props<K> {
     isRetry?: boolean;
 }
 
-const wait = (delay: number): Promise<> => new Promise((resolve) => setTimeout(resolve, delay));
+const wait = (delay: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, delay));
 
 /**
  * Retries a promise for a defined number of times until it is successfully resolved.
