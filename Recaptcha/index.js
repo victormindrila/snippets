@@ -15,17 +15,44 @@ class Recaptcha {
 	fnPromises = [];
 
 	constructor(siteKey, scriptId = 'google-recaptcha-script') {
+		this.handleOnCreateScript = this.handleOnCreateScript.bind(this);
+		this.handleRecaptchaLoadError = this.handleRecaptchaLoadError.bind(this);
+		this.handleRecaptchaLoad = this.handleRecaptchaLoad.bind(this);
+		this.onRecaptchaLoadedCb = this.onRecaptchaLoadedCb.bind(this);
+
 		this.siteKey = siteKey;
 		this.listeners = new Listeners();
 		this.script = new ScriptLoader({
-			src: 'https://www.google.com/recaptcha/api.js?render=' + siteKey + '&onload=onRecaptchaLoaded',
+			src:
+				'https://www.google.com/recaptcha/api.js?render=' + siteKey + '&onload=onRecaptchaLoaded',
 			id: scriptId,
 			async: true,
 			defer: true,
-			onCreateScript: () => {
-				window.onRecaptchaLoaded = this.onRecaptchaLoaded.bind(this);
-			}
+			onCreateScript: this.handleOnCreateScript
 		});
+
+		this.listeners.addEventListener('recaptchaLoaded', this.handleRecaptchaLoad);
+		this.listeners.addEventListener('recaptchaLoadError', this.handleRecaptchaLoadError);
+	}
+
+	onRecaptchaLoadedCb() {
+		this.listeners.triggerEvent('recaptchaLoaded');
+	}
+
+	handleOnCreateScript() {
+		window.onRecaptchaLoaded = this.onRecaptchaLoadedCb;
+	}
+
+	handleRecaptchaLoadError(e) {
+		this.status = 'error';
+		this.rejectAllPendingActions();
+		this.cleanRecaptcha();
+	}
+
+	handleRecaptchaLoad(e) {
+		this.instance = window.grecaptcha;
+		this.status = 'loaded';
+		this.resolveAllPendingActions();
 	}
 
 	getInstanceAsync() {
@@ -46,8 +73,6 @@ class Recaptcha {
 		this.status = 'loading';
 
 		await this.script.loadScript().catch((e) => {
-			this.cleanRecaptcha();
-			this.status = 'error';
 			this.listeners.triggerEvent('recaptchaLoadError', e);
 
 			if (retryOnFail) {
@@ -86,13 +111,6 @@ class Recaptcha {
 			const fnPromise = this.fnPromises.shift();
 			fnPromise.reject();
 		}
-	}
-
-	onRecaptchaLoaded() {
-		this.instance = window.grecaptcha;
-		this.status = 'loaded';
-		this.listeners.triggerEvent('recaptchaLoaded');
-		this.resolveAllPendingActions();
 	}
 
 	async getToken(action) {
