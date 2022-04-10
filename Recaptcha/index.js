@@ -1,5 +1,5 @@
-import { Listeners } from './utils/Listeners';
 import { ScriptLoader } from './utils/ScriptLoader';
+import mitt from 'mitt';
 
 /**
  * WIP
@@ -9,9 +9,12 @@ import { ScriptLoader } from './utils/ScriptLoader';
 class Recaptcha {
 	siteKey = null;
 	instance = null;
-	status = 'initial'; // initial, loading, loaded, error
+	/**
+	 * @states initial, loading, loaded, error
+	 */
+	status = 'initial';
 	script = null;
-	listeners = null;
+	emitter = null;
 	fnPromises = [];
 
 	constructor(siteKey, scriptId = 'google-recaptcha-script') {
@@ -21,7 +24,7 @@ class Recaptcha {
 		this.onRecaptchaLoadedCb = this.onRecaptchaLoadedCb.bind(this);
 
 		this.siteKey = siteKey;
-		this.listeners = new Listeners();
+		this.emitter = mitt();
 		this.script = new ScriptLoader({
 			src:
 				'https://www.google.com/recaptcha/api.js?render=' + siteKey + '&onload=onRecaptchaLoaded',
@@ -31,12 +34,12 @@ class Recaptcha {
 			onCreateScript: this.handleOnCreateScript
 		});
 
-		this.listeners.addEventListener('recaptchaLoaded', this.handleRecaptchaLoad);
-		this.listeners.addEventListener('recaptchaLoadError', this.handleRecaptchaLoadError);
+		this.emitter.on('recaptchaLoaded', this.handleRecaptchaLoad);
+		this.emitter.on('recaptchaLoadError', this.handleRecaptchaLoadError);
 	}
 
 	onRecaptchaLoadedCb() {
-		this.listeners.triggerEvent('recaptchaLoaded');
+		this.emitter.emit('recaptchaLoaded');
 	}
 
 	handleOnCreateScript() {
@@ -47,22 +50,31 @@ class Recaptcha {
 		this.status = 'error';
 		this.rejectAllPendingActions();
 		this.cleanRecaptcha();
+		this.emitter.off('recaptchaLoadError', this.handleRecaptchaLoadError);
 	}
 
 	handleRecaptchaLoad(e) {
 		this.instance = window.grecaptcha;
 		this.status = 'loaded';
 		this.resolveAllPendingActions();
+		this.emitter.off('recaptchaLoaded', this.handleRecaptchaLoad);
 	}
 
 	getInstanceAsync() {
 		return new Promise((resolve, reject) => {
-			if (this.status === 'loaded') {
+			const resolveImmediately = () => {
+				resolve(this.instance) 
+			};
+
+			const resolveAsync = () => {
 				resolve(this.instance);
+				this.emitter.off('recaptchaLoaded', resolveAsync);
+			};
+
+			if (this.status === 'loaded') {
+				resolveImmediately();
 			} else {
-				this.listeners.addEventListener('recaptchaLoaded', () => {
-					resolve(this.instance);
-				});
+				this.emitter.on('recaptchaLoaded', resolveAsync);
 			}
 		});
 	}
@@ -73,7 +85,7 @@ class Recaptcha {
 		this.status = 'loading';
 
 		await this.script.loadScript().catch((e) => {
-			this.listeners.triggerEvent('recaptchaLoadError', e);
+			this.emitter.emit('recaptchaLoadError', e);
 
 			if (retryOnFail) {
 				this.init(false);
