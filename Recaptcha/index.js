@@ -21,7 +21,6 @@ class Recaptcha {
 		this.handleOnCreateScript = this.handleOnCreateScript.bind(this);
 		this.handleRecaptchaLoadError = this.handleRecaptchaLoadError.bind(this);
 		this.handleRecaptchaLoad = this.handleRecaptchaLoad.bind(this);
-		this.onRecaptchaLoadedCb = this.onRecaptchaLoadedCb.bind(this);
 
 		this.siteKey = siteKey;
 		this.emitter = mitt();
@@ -38,12 +37,10 @@ class Recaptcha {
 		this.emitter.on('recaptchaLoadError', this.handleRecaptchaLoadError);
 	}
 
-	onRecaptchaLoadedCb() {
-		this.emitter.emit('recaptchaLoaded');
-	}
-
 	handleOnCreateScript() {
-		window.onRecaptchaLoaded = this.onRecaptchaLoadedCb;
+		window.onRecaptchaLoaded = () => {
+			this.emitter.emit('recaptchaLoaded')
+		};
 	}
 
 	handleRecaptchaLoadError(e) {
@@ -63,7 +60,7 @@ class Recaptcha {
 	getInstanceAsync() {
 		return new Promise((resolve, reject) => {
 			const resolveImmediately = () => {
-				resolve(this.instance) 
+				resolve(this.instance);
 			};
 
 			const resolveAsync = () => {
@@ -80,17 +77,18 @@ class Recaptcha {
 	}
 
 	async init(retryOnFail = false) {
-		if (this.instance || this.status !== 'initial') return;
+		if (!this.instance && this.status === 'initial') {
+			this.status = 'loading';
 
-		this.status = 'loading';
-
-		await this.script.loadScript().catch((e) => {
-			this.emitter.emit('recaptchaLoadError', e);
-
-			if (retryOnFail) {
-				this.init(false);
-			}
-		});
+			await this.script.loadScript().catch((e) => {
+				if (retryOnFail) {
+					return this.init(false);
+				} else {
+					this.emitter.emit('recaptchaLoadError', e);
+					return Promise.reject(e);
+				}
+			});
+		}
 
 		return this.getInstanceAsync();
 	}
