@@ -1,15 +1,25 @@
-import recaptcha from '../'; 
+import { init as recaptchaInit } from '../';
 
 const RecaptchaComponent = () => {
-    const [instance, setInstance] = useState(null); 
-    const [token, setToken] = useState(token); 
+    const [instance, setInstance] = useState(null);
+    const [token, setToken] = useState(token);
 
     useEffect(() => {
         // injects recaptcha script
         // returns the recaptcha instance
-        recaptcha.init(true).then((instance) => {
-            setInstance(instance); 
-        }); 
+        recaptchaInit({
+            siteKey: recaptchaSiteKey,
+            retryOnFail: true,
+            src:
+                'https://www.google.com/recaptcha/api.js?render=' +
+                recaptchaSiteKey +
+                '&onload=onRecaptchaLoaded',
+            id: 'recaptcha-script',
+            async: true,
+            defer: true
+        }).then((instance) => {
+            setInstance(instance);
+        }).catch((error) => console.log(error));
     }, [])
 
     useEffect(() => {
@@ -18,11 +28,11 @@ const RecaptchaComponent = () => {
         }, [9000])
 
         return () => {
-            clearInterval(interval); 
+            clearInterval(interval);
         }
     }, [instance])
 
-    return null; 
+    return null;
 }
 
 export default RecaptchaComponent;

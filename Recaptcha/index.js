@@ -1,10 +1,36 @@
 import { ScriptLoader } from './utils/ScriptLoader';
 import mitt from 'mitt';
 
+// TODO: import from utils when converting to TS
+const promiseRetry = async ({
+	promiseFn,
+	shouldRetry = () => true,
+	retries = 2,
+	delay = 0,
+	isRetry = false
+}) => {
+	try {
+		return await promiseFn(isRetry);
+	} catch (error) {
+		if (shouldRetry(error) && retries > 1) {
+			if (delay > 0) await new Promise((resolve, reject) => setTimeout(resolve, delay));
+			return promiseRetry({
+				promiseFn,
+				shouldRetry,
+				retries: retries - 1,
+				delay,
+				isRetry: true
+			});
+		}
+
+		throw error;
+	}
+};
+
 /**
  * WIP
  * recpatcha singleton
- * TODO: add TS, pass recaptcha key in init method, extract hardcoded values
+ * TODO: add TS, extract hardcoded values
  */
 class Recaptcha {
 	siteKey = null;
@@ -17,44 +43,46 @@ class Recaptcha {
 	emitter = null;
 	fnPromises = [];
 
-	constructor(siteKey, scriptId = 'google-recaptcha-script') {
+	constructor() {
 		this.handleOnCreateScript = this.handleOnCreateScript.bind(this);
 		this.handleRecaptchaLoadError = this.handleRecaptchaLoadError.bind(this);
 		this.handleRecaptchaLoad = this.handleRecaptchaLoad.bind(this);
+		this.onRecaptchaLoadedCb = this.onRecaptchaLoadedCb.bind(this);
 
-		this.siteKey = siteKey;
 		this.emitter = mitt();
-		this.script = new ScriptLoader({
-			src:
-				'https://www.google.com/recaptcha/api.js?render=' + siteKey + '&onload=onRecaptchaLoaded',
-			id: scriptId,
-			async: true,
-			defer: true,
-			onCreateScript: this.handleOnCreateScript
-		});
+		this.script = new ScriptLoader();
+	}
 
+	onRecaptchaLoadedCb() {
+		this.emitter.emit('recaptchaLoaded');
+	}
+
+	handleOnCreateScript() {
+		window.onRecaptchaLoaded = this.onRecaptchaLoadedCb;
+	}
+
+	subscribe() {
 		this.emitter.on('recaptchaLoaded', this.handleRecaptchaLoad);
 		this.emitter.on('recaptchaLoadError', this.handleRecaptchaLoadError);
 	}
 
-	handleOnCreateScript() {
-		window.onRecaptchaLoaded = () => {
-			this.emitter.emit('recaptchaLoaded')
-		};
+	unsubscribe() {
+		this.emitter.off('recaptchaLoaded', this.handleRecaptchaLoad);
+		this.emitter.off('recaptchaLoadError', this.handleRecaptchaLoadError);
 	}
 
 	handleRecaptchaLoadError(e) {
 		this.status = 'error';
 		this.rejectAllPendingActions();
 		this.cleanRecaptcha();
-		this.emitter.off('recaptchaLoadError', this.handleRecaptchaLoadError);
+		this.unsubscribe();
 	}
 
 	handleRecaptchaLoad(e) {
 		this.instance = window.grecaptcha;
 		this.status = 'loaded';
 		this.resolveAllPendingActions();
-		this.emitter.off('recaptchaLoaded', this.handleRecaptchaLoad);
+		this.unsubscribe();
 	}
 
 	getInstanceAsync() {
@@ -76,17 +104,54 @@ class Recaptcha {
 		});
 	}
 
-	async init(retryOnFail = false) {
-		if (!this.instance && this.status === 'initial') {
-			this.status = 'loading';
+	async init({ siteKey, src, id, async, defer, retryOnFail = false }) {
+		if (this.instance) {
+			return this.instance;
+		}
 
-			await this.script.loadScript().catch((e) => {
-				if (retryOnFail) {
-					return this.init(false);
-				} else {
-					this.emitter.emit('recaptchaLoadError', e);
-					return Promise.reject(e);
-				}
+		if (!siteKey) {
+			throw new Error('Please provide a recaptcha site key');
+		}
+
+		this.siteKey = siteKey;
+
+		if (this.status === 'initial') {
+			this.status = 'loading';
+			this.subscribe();
+
+			await promiseRetry({
+				promiseFn: (isRetry) => {
+					if (isRetry) {
+						this.cleanRecaptcha();
+					}
+					return this.script.loadScript({
+						retryOnFail,
+						src,
+						id,
+						async,
+						defer,
+						onCreateScript: this.handleOnCreateScript
+					});
+				},
+				shouldRetry: (e) => retryOnFail && e.type === 'error',
+				retries: 2,
+				delay: 500
+			}).catch((error) => {
+				this.emitter.emit('recaptchaLoadError', error);
+				throw error;
+			});
+		}
+
+		if (this.status === 'loading') {
+			await new Promise((resolve, reject) => {
+				this.fnPromises.push({
+					resolve: () => {
+						resolve(this.instance);
+					},
+					reject
+				});
+			}).catch((error) => {
+				throw error;
 			});
 		}
 
@@ -97,7 +162,6 @@ class Recaptcha {
 		this.rejectAllPendingActions();
 
 		this.instance = null;
-		this.status = 'initial';
 		this.script.cleanScript();
 
 		// clean other scripts
@@ -191,4 +255,13 @@ class Recaptcha {
 	}
 }
 
-export default new Recaptcha('recaptcha key');
+const recaptchaInstance = new Recaptcha();
+
+export const init = async (props) => {
+	if (typeof props !== 'object') {
+		throw new Error('Please provide an object as init props');
+	}
+	return recaptchaInstance.init(props);
+};
+
+export default recaptchaInstance;
