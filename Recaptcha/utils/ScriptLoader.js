@@ -7,14 +7,6 @@ export class ScriptLoader {
 	onCreateScript = () => undefined;
 	status = 'loading';
 
-	constructor({ src, id, async = true, defer = true, onCreateScript = () => undefined }) {
-		this.src = src;
-		this.id = id;
-		this.async = async;
-		this.defer = defer;
-		this.onCreateScript = onCreateScript;
-	}
-
 	createAndAppendScript() {
 		const script = document.createElement('script');
 		script.src = this.src;
@@ -25,7 +17,13 @@ export class ScriptLoader {
 		return script;
 	}
 
-	loadScript() {
+	loadScript({ src, id, async = true, defer = true, onCreateScript = () => undefined }) {
+		this.src = src;
+		this.id = id;
+		this.async = async;
+		this.defer = defer;
+		this.onCreateScript = onCreateScript;
+
 		let script;
 		let loadPromise;
 
@@ -53,14 +51,18 @@ export class ScriptLoader {
 			loadPromise = Promise.resolve();
 			this.status = script.getAttribute('data-status');
 		}
-		this.scriptRef = script;
+		this.scriptElementRef = script;
 
 		return loadPromise;
 	}
 
 	cleanScript() {
-		if (this.script && this.script.scriptElementRef) {
-			this.script.scriptElementRef.remove();
+		if (this.scriptElementRef) {
+			this.scriptElementRef.remove();
+			this.src = null;
+			this.id = null;
+			this.async = true;
+			this.defer = true;
 		}
 	}
 }
